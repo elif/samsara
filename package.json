@@ -1,0 +1,31 @@
+{"name":"samsara",
+"version":"0.0.1",
+"description":"",
+"homepage":"",
+"author":"",
+"contributors":[],
+"keywords":[],
+"directories":{},
+"files":[],
+"main":"./samsara.js",
+"scripts":{
+  "install":"",
+  "build":"",
+  "test":""
+  },
+"engines":{
+  "node":">= 0.4.8"
+  },
+"dependencies":{
+  "redis":"0.6.0",
+  "fugue":"0.1.2"
+  },
+"repository":{
+  "type":"git",
+  "url":""
+  },
+"bugs":{
+  "url":""
+  },
+"licenses":[]
+}
