@@ -3,6 +3,10 @@ var http = require('http'),
     url = require('url'),
     redis_client = redis.createClient();
 
+process.on('uncaughtException', function (err) {
+  console.error(err);
+});
+
 http.createServer(function(request, response) {
   path = request_path(request);
   redis_client.del("responses:" + request.headers['host'] + path);
