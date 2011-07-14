@@ -2,6 +2,7 @@ var http = require('http'),
     redis = require('redis'),
     url = require('url'),
     fugue = require('fugue'),
+    fs = require('fs'),
     redis_url = url.parse(process.env.REDIS_URL),
     redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
 
