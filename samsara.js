@@ -7,7 +7,7 @@ var http = require('http'),
     redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
 
 process.on('uncaughtException', function (err) {
-  console.error(err);
+  console.log(err);
 });
 
 if (fugue.workerId()) {
@@ -75,7 +75,6 @@ fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WOR
   verbose: true,
   uid: process.env.SAMSARA_UID,
   gid: process.env.SAMSARA_GID,
-  working_path: process.env.SAMSARA_WORKING_PATH,
   log_file: process.env.SAMSARA_LOG_FILE,
   master_pid_path: "/var/run/vitrue/samsara.pid"
 });
