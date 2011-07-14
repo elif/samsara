@@ -9,7 +9,13 @@ process.on('uncaughtException', function (err) {
   console.error(err);
 });
 
-http.createServer(function(request, response) {
+if (fugue.workerId()) {
+  fs.writeFile("/var/run/vitrue/samsara." + fugue.workerId() + ".pid",
+               process.pid.toString(),
+               function(err) { if (err) {console.log("Error writing pidfile: " + err.toString()) } });
+}
+
+var server = http.createServer(function(request, response) {
   path = request_path(request);
   redis_client.del("responses:" + request.headers['host'] + path);
   var emcee_request = http.request({
@@ -62,7 +68,16 @@ http.createServer(function(request, response) {
   request.on('close', function() {
     console.log("Connection terminated before expected");
   });
-}).listen(parseInt(process.env.SAMSARA_PORT) || 80);
+});
+
+fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WORKER_COUNT, {
+  verbose: true,
+  uid: process.env.SAMSARA_UID,
+  gid: process.env.SAMSARA_GID,
+  working_path: process.env.SAMSARA_WORKING_PATH,
+  log_file: process.env.SAMSARA_LOG_FILE,
+  master_pid_path: "/var/run/vitrue/samsara.pid"
+});
  
 function request_path(request) {
   var parsed_url = url.parse(request.url);
