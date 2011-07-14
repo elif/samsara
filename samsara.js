@@ -1,7 +1,9 @@
 var http = require('http'),
     redis = require('redis'),
     url = require('url'),
-    redis_client = redis.createClient();
+    fugue = require('fugue'),
+    redis_url = url.parse(process.env.REDIS_URL),
+    redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
 
 process.on('uncaughtException', function (err) {
   console.error(err);
