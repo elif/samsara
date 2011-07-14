@@ -62,7 +62,7 @@ http.createServer(function(request, response) {
   request.on('close', function() {
     console.log("Connection terminated before expected");
   });
-}).listen(80);
+}).listen(parseInt(process.env.SAMSARA_PORT) || 80);
  
 function request_path(request) {
   var parsed_url = url.parse(request.url);
