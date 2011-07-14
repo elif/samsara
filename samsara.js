@@ -12,7 +12,7 @@ process.on('uncaughtException', function (err) {
 
 var server = http.createServer(function(request, response) {
   path = request_path(request);
-  redis_client.del("responses:" + request.headers['host'] + path);
+  if (path == "/monitor/health") { serve(response, "Healthy!!"); }
   var emcee_request = http.request({
     host: process.env.EMCEE_HOST,
     path: path,
@@ -84,4 +84,10 @@ function record_response(type, url, code, body) {
     redis_client.hset("responses:" + url, type + "_body", body);
     redis_client.expire("responses:" + url, 36000);
   }
+}
+
+function serve(response, body) {
+  response.writeHead(200, {'Content-Type': 'text/html',
+                           'Content-Length': body.length});
+  response.end(body);
 }
