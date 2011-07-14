@@ -10,12 +10,6 @@ process.on('uncaughtException', function (err) {
   console.log(err);
 });
 
-if (fugue.workerId()) {
-  fs.writeFile("/var/run/vitrue/samsara." + fugue.workerId() + ".pid",
-               process.pid.toString(),
-               function(err) { if (err) {console.log("Error writing pidfile: " + err.toString()) } });
-}
-
 var server = http.createServer(function(request, response) {
   path = request_path(request);
   redis_client.del("responses:" + request.headers['host'] + path);
