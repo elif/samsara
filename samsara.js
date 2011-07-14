@@ -1,33 +1,47 @@
 var http = require('http'),
-    url = require('url');
+    redis = require('redis'),
+    url = require('url'),
+    redis_client = redis.createClient();
 
 http.createServer(function(request, response) {
-  console.log("got request: " + request.headers['host'] + request_path(request));
+  path = request_path(request);
+  redis_client.del("responses:" + request.headers['host'] + path);
   var emcee_request = http.request({
     host: process.env.EMCEE_HOST,
-    path: request_path(request),
+    path: path,
     port: parseInt(process.env.EMCEE_PORT),
     method: request.method,
     headers: request.headers });
 
   var deejay_request = http.request({
     host: process.env.DEEJAY_HOST,
-    path: request_path(request),
+    path: path,
     port: parseInt(process.env.DEEJAY_PORT),
     method: request.method,
     headers: request.headers });
 
   emcee_request.on('response', function(emcee_response) {
-    emcee_response.on('data', function(chunk) { 
-      response.write(chunk, 'binary'); 
-      record_response("emcee", request.headers['host'] + request.url, emcee_response.statusCode, chunk.toString('binary')) });
-    emcee_response.on('end', function() { response.end(); });
+    var status_code = emcee_response.statusCode
+    var recordable = (!emcee_response.headers['content-encoding'])
+    var response_body = ""
+    emcee_response.on('data', function(chunk) {
+      response.write(chunk, 'binary');
+      if (recordable) { response_body += chunk.toString('utf8'); }
+    });
+    emcee_response.on('end', function() {
+      response.end();
+      if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+    });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
   });
 
   deejay_request.on('response', function(deejay_response) {
-    deejay_response.on('data', function(chunk) { 
-      record_response("deejay", request.headers['host'] + request.url, deejay_response.statusCode, chunk.toString('utf8')) 
+    var status_code = deejay_response.statusCode
+    var recordable = (!deejay_response.headers['content-encoding'])
+    var response_body = ""
+    deejay_response.on('data', function(chunk) { if (recordable) { response_body += chunk.toString('utf8'); } });
+    deejay_response.on('end', function() {
+      if (recordable) { record_response("deejay", request.headers['host'] + path, status_code, response_body); }
     });
   });
 
@@ -43,15 +57,16 @@ http.createServer(function(request, response) {
     console.log("Connection terminated before expected");
   });
 }).listen(80);
-
+ 
 function request_path(request) {
-  var parsed_url = url.parse(request.url)
+  var parsed_url = url.parse(request.url);
   return parsed_url['search'] ? (parsed_url['pathname'] + parsed_url['search']) : parsed_url['pathname']
 }
 
 function record_response(type, url, code, body) {
-  console.log(type + ":");
-  console.log(url);
-  console.log(code);
-  console.log(body); 
+  if (body) {
+    redis_client.hset("responses:" + url, type + "_code", code);
+    redis_client.hset("responses:" + url, type + "_body", body);
+    redis_client.expire("responses:" + url, 36000);
+  }
 }
