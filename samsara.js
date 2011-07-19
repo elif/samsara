@@ -77,7 +77,7 @@ fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WOR
   verbose: true,
   uid: process.env.SAMSARA_UID,
   gid: process.env.SAMSARA_GID,
-  log_file: process.env.SAMSARA_LOG,
+//  log_file: process.env.SAMSARA_LOG,
   master_pid_path: "/var/run/vitrue/samsara.pid"
 });
  
