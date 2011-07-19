@@ -38,6 +38,7 @@ var server = http.createServer(function(request, response) {
     emcee_response.on('end', function() {
       response.end();
       if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+      console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
   });
@@ -62,6 +63,13 @@ var server = http.createServer(function(request, response) {
   });
   request.on('close', function() {
     console.log("Connection terminated before expected");
+  });
+  emcee_request.on('error', function(error) {
+    console.log("emcee request signaled error: " + error);
+    response.end();
+  });
+  deejay_request.on('error', function(error) {
+    console.log("deejay request signaled error: " + error);
   });
 });
 
