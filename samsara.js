@@ -69,7 +69,7 @@ fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WOR
   verbose: true,
   uid: process.env.SAMSARA_UID,
   gid: process.env.SAMSARA_GID,
-  log_file: process.env.SAMSARA_LOG_FILE,
+  log_file: process.env.SAMSARA_LOG,
   master_pid_path: "/var/run/vitrue/samsara.pid"
 });
  
@@ -80,9 +80,13 @@ function request_path(request) {
 
 function record_response(type, url, code, body) {
   if (body) {
-    redis_client.hset("responses:" + url, type + "_code", code);
-    redis_client.hset("responses:" + url, type + "_body", body);
-    redis_client.expire("responses:" + url, 36000);
+    try {
+      redis_client.hset("responses:" + url, type + "_code", code);
+      redis_client.hset("responses:" + url, type + "_body", body);
+      redis_client.expire("responses:" + url, 36000);
+    } catch (err) {
+      console.log("redis logging error");
+    }
   }
 }
 
