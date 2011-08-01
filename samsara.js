@@ -6,10 +6,6 @@ var http = require('http'),
     redis_url = url.parse(process.env.REDIS_URL),
     redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
 
-process.on('uncaughtException', function (err) {
-  console.log(err);
-});
-
 var server = http.createServer(function(request, response) {
   path = request_path(request),
   agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
@@ -29,8 +25,6 @@ var server = http.createServer(function(request, response) {
 
 fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WORKER_COUNT, {
   verbose: true,
-  uid: process.env.SAMSARA_UID,
-  gid: process.env.SAMSARA_GID,
   master_pid_path: "/var/run/vitrue/samsara.pid"
 });
  
@@ -119,7 +113,6 @@ function proxy_to_deejay(request, response) {
     });
     response.writeHead(deejay_response.statusCode, deejay_response.headers);
   });
-  
 }
 
 function request_path(request) {
