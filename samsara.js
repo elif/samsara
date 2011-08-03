@@ -8,14 +8,14 @@ var http = require('http'),
     agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
 
 var server = http.createServer(function(request, response) {
-  path = request_path(request),
+  path = request_path(request);
 
   if (path == "/monitor/health") { 
     serve(response, "Healthy!!");
   } else if (agent.queue.length > 100) {
     serve_502(response, "Server overloaded at the moment, please try again later");
   } else {
-    if (redis_client.sismember("samsara_url_whitelist", path)) {
+    if (redis_client.sismember("samsara_url_whitelist", request.headers['host'] + path)) {
       proxy_to_deejay(request, response);
     } else {
       proxy_request(request, response);
