@@ -4,11 +4,11 @@ var http = require('http'),
     fugue = require('fugue'),
     fs = require('fs'),
     redis_url = url.parse(process.env.REDIS_URL),
-    redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
+    redis_client = redis.createClient(redis_url['port'], redis_url['hostname']),
+    agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
 
 var server = http.createServer(function(request, response) {
   path = request_path(request),
-  agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
 
   if (path == "/monitor/health") { 
     serve(response, "Healthy!!");
