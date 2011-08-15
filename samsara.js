@@ -3,23 +3,28 @@ var http = require('http'),
     url = require('url'),
     fugue = require('fugue'),
     fs = require('fs'),
+    buffer = require('./lib/request_buffer.js'),
     redis_url = url.parse(process.env.REDIS_URL),
     redis_client = redis.createClient(redis_url['port'], redis_url['hostname']),
     agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
 
 var server = http.createServer(function(request, response) {
+  buffer.capture(request);
   path = request_path(request);
-
   if (path == "/monitor/health") { 
     serve(response, "Healthy!!");
   } else if (agent.queue.length > 100) {
     serve_502(response, "Server overloaded at the moment, please try again later");
   } else {
-    if (redis_client.sismember("samsara_url_whitelist", request.headers['host'] + path)) {
-      proxy_to_deejay(request, response);
-    } else {
-      proxy_request(request, response);
-    }
+    redis_client.sismember("samsara_url_whitelist", request.headers['host'] + path, function(error, whitelisted) {
+      if (whitelisted) {
+        console.log('deejay response');
+        proxy_to_deejay(request, response);
+      } else {
+        console.log('emcee response');
+        proxy_request(request, response);
+      }
+    });
   }
 });
 
@@ -88,6 +93,7 @@ function proxy_request(request, response) {
   deejay_request.on('error', function(error) {
     console.log("deejay request signaled error: " + error);
   });
+  buffer.replay(request);
 }
 
 function proxy_to_deejay(request, response) {
@@ -113,6 +119,16 @@ function proxy_to_deejay(request, response) {
     });
     response.writeHead(deejay_response.statusCode, deejay_response.headers);
   });
+  request.on('data', function(chunk) {
+    deejay_request.write(chunk, 'binary');
+  });
+  request.on('end', function() {
+    deejay_request.end();
+  });
+  request.on('close', function() {
+    console.log("Connection terminated before expected");
+  });
+  buffer.replay(request);
 }
 
 function request_path(request) {
