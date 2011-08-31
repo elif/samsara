@@ -9,7 +9,6 @@ while true
   token = random_string
   response = HTTParty.get("http://deejay-staging.cloud.vitrue.com/test0", :follow_redirects => false)
   unless (response.code == 301)
-    puts response.body
     puts "\n#{Time.now}"
   else
     print "."
