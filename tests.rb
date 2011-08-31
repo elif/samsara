@@ -7,11 +7,12 @@ end
 
 while true
   token = random_string
-  response = HTTParty.get("http://localhost/a?test=#{token}")
-  if (response.body != "test=#{token}")
-    puts "\n[Error] expected #{token}, got #{response.body.split('=')[1]}"
-    sleep 10
+  response = HTTParty.get("http://deejay-staging.cloud.vitrue.com/test0", :follow_redirects => false)
+  unless (response.code == 301)
+    puts response.body
+    puts "\n#{Time.now}"
   else
     print "."
   end
+  sleep 0.1
 end
