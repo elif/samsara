@@ -10,7 +10,7 @@ var http = require('http'),
 
 var server = http.createServer(function(request, response) {
   buffer.capture(request);
-  path = request_path(request);
+  var path = request_path(request);
   if (path == "/monitor/health") { 
     serve(response, "Healthy!!");
   } else if (agent.queue.length > 100) {
@@ -34,6 +34,7 @@ fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WOR
 });
  
 function proxy_request(request, response) {
+  var path = request_path(request);
   request.headers['x-forwarded-for'] = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
   var emcee_request = http.request({
     host: process.env.EMCEE_HOST,
@@ -97,6 +98,7 @@ function proxy_request(request, response) {
 }
 
 function proxy_to_deejay(request, response) {
+  var path = request_path(request);
   request.headers['x-forwarded-for'] = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
   var deejay_request = http.request({
     host: process.env.DEEJAY_HOST,
