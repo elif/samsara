@@ -107,8 +107,6 @@ function proxy_to_deejay(request, response) {
     method: request.method,
     headers: request.headers });
 
-  console.log(deejay_request + ": " + deejay_request.statusCode);
-
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
     var recordable = (!deejay_response.headers['content-encoding'])
