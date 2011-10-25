@@ -159,7 +159,7 @@ function record_response(type, url, code, body) {
 }
 
 function record_redirect_response(type, url, code, location) {
-  if (body) {
+  if (location) {
     try {
       redis_client.hset("responses:" + url, type + "_code", code);
       redis_client.hset("responses:" + url, type + "_location", location);
