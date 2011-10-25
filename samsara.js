@@ -60,7 +60,12 @@ function proxy_request(request, response) {
     });
     emcee_response.on('end', function() {
       response.end();
-      if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+      if (recordable) { 
+		if(status_code==301) {
+			record_redirect_response("emcee", request.headers['host'] + path, status_code, emcee_response.headers.location);
+		} else {
+			record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+      	}
       console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
