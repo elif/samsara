@@ -107,9 +107,15 @@ function proxy_to_deejay(request, response) {
     method: request.method,
     headers: request.headers });
 
+  console.log(deejay_request + ": " + deejay_request.statusCode);
+
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
     var recordable = (!deejay_response.headers['content-encoding'])
+	if(status_code == 301) {
+		console.log(deejay_response.headers.location);
+		//record location
+	}
     var response_body = ""
     deejay_response.on('data', function(chunk) {
       response.write(chunk, 'binary');
@@ -117,7 +123,13 @@ function proxy_to_deejay(request, response) {
     });
     deejay_response.on('end', function() {
       response.end();
-      console.log("Successfully proxied " + request.headers['host'] + path);
+	  if (recordable) { 
+		if(status_code==301) {
+			record_response("deejay", request.headers['host'] + path, status_code, deejay_response.headers.location);
+		} else {
+			record_response("deejay", request.headers['host'] + path, status_code, response_body); }
+      	}
+		console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(deejay_response.statusCode, deejay_response.headers);
   });
