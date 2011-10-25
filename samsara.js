@@ -121,7 +121,7 @@ function proxy_to_deejay(request, response) {
       response.end();
 	  if (recordable) { 
 		if(status_code==301) {
-			record_response("deejay", request.headers['host'] + path, status_code, deejay_response.headers.location);
+			record_redirect_response("deejay", request.headers['host'] + path, status_code, deejay_response.headers.location);
 		} else {
 			record_response("deejay", request.headers['host'] + path, status_code, response_body); }
       	}
@@ -151,6 +151,18 @@ function record_response(type, url, code, body) {
     try {
       redis_client.hset("responses:" + url, type + "_code", code);
       redis_client.hset("responses:" + url, type + "_body", body);
+      redis_client.expire("responses:" + url, 36000);
+    } catch (err) {
+      console.log("redis logging error");
+    }
+  }
+}
+
+function record_redirect_response(type, url, code, location) {
+  if (body) {
+    try {
+      redis_client.hset("responses:" + url, type + "_code", code);
+      redis_client.hset("responses:" + url, type + "_location", location);
       redis_client.expire("responses:" + url, 36000);
     } catch (err) {
       console.log("redis logging error");
