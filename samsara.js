@@ -105,7 +105,8 @@ function proxy_to_deejay(request, response) {
     path: path,
     port: parseInt(process.env.DEEJAY_PORT),
     method: request.method,
-    headers: request.headers });
+    headers: request.headers,
+    agent: false });
 
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
