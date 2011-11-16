@@ -16,7 +16,7 @@ var server = http.createServer(function(request, response) {
   } else if (agent.queue.length > 100) {
     serve_502(response, "Server overloaded at the moment, please try again later");
   } else {
-    redis_client.sismember("samsara_url_whitelist", request.headers['host'] + path, function(error, whitelisted) {
+    redis_client.sismember("samsara_url_whitelist", request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
       if (whitelisted) {
         console.log('deejay response');
         proxy_to_deejay(request, response);
