@@ -5,7 +5,6 @@ var http = require('http'),
     fs = require('fs'),
     buffer = require('./lib/request_buffer.js'),
     redis_url = url.parse(process.env.REDIS_URL),
-    redis_client = redis.createClient(redis_url['port'], redis_url['hostname']),
     agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
 
 var server = http.createServer(function(request, response) {
@@ -16,15 +15,8 @@ var server = http.createServer(function(request, response) {
   } else if (agent.queue.length > 100) {
     serve_502(response, "Server overloaded at the moment, please try again later");
   } else {
-    redis_client.sismember("samsara_url_whitelist", request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
-      if (whitelisted) {
-        console.log('deejay response');
-        proxy_to_deejay(request, response);
-      } else {
-        console.log('emcee response');
-        proxy_request(request, response);
-      }
-    });
+    console.log('emcee response');
+    proxy_request(request, response);
   }
 });
 
@@ -56,11 +48,9 @@ function proxy_request(request, response) {
     var response_body = ""
     emcee_response.on('data', function(chunk) {
       response.write(chunk, 'binary');
-      if (recordable) { response_body += chunk.toString('utf8'); }
     });
     emcee_response.on('end', function() {
       response.end();
-      if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
       console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
@@ -70,10 +60,6 @@ function proxy_request(request, response) {
     var status_code = deejay_response.statusCode
     var recordable = (!deejay_response.headers['content-encoding'])
     var response_body = ""
-    deejay_response.on('data', function(chunk) { if (recordable) { response_body += chunk.toString('utf8'); } });
-    deejay_response.on('end', function() {
-      if (recordable) { record_response("deejay", request.headers['host'] + path, status_code, response_body); }
-    });
   });
 
   request.on('data', function(chunk) {
@@ -137,18 +123,6 @@ function proxy_to_deejay(request, response) {
 function request_path(request) {
   var parsed_url = url.parse(request.url);
   return parsed_url['search'] ? (parsed_url['pathname'] + parsed_url['search']) : parsed_url['pathname']
-}
-
-function record_response(type, url, code, body) {
-  if (body) {
-    try {
-      redis_client.hset("responses:" + url, type + "_code", code);
-      redis_client.hset("responses:" + url, type + "_body", body);
-      redis_client.expire("responses:" + url, 36000);
-    } catch (err) {
-      console.log("redis logging error");
-    }
-  }
 }
 
 function serve(response, body) {
