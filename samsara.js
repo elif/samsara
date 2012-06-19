@@ -10,25 +10,16 @@ var http = require('http'),
     redis_client, db_client;
 
 function connect_to_datastores() {
-  redis_client = redis.createClient(redis_url['port'], redis_url['hostname'], {no_ready_check: true})
-  redis_client.on("error", function(err) {  console.log("Unable to connect to redis (" + process.env.REDIS_URL + "): " + err); });
+  redis_client = redis.createClient(redis_url['port'], redis_url['hostname'])
+  redis_client.retry_delay = 1000
+  redis_client.retry_backoff = 1.0
+  redis_client.on('reconnecting', function(err) { console.log("reconnecting") });
+  redis_client.on('error', function(err) { console.log("error") });
 
   db_client = new pg.Client(process.env.POSTGRES_URL);
-  db_client.on("error", function (err) { console.log("Unable to connect to postgres (" + process.env.POSTGRES_URL + "): " + err); });
+  db_client.on('error', function (err) { console.log("Unable to connect to postgres (" + process.env.POSTGRES_URL + "): " + err); });
   db_client.connect();
-  var connected = redis_client.info()
-  if (!connected) {
-    console.log("Redis communication failed\nTrying postgres...");
-    db_client.query("SHOW_TABLES", function(err, result) {
-      if (err) {
-        throw new Error("Cannot connect to postgres: " + err) 
-      } else {
-        console.log("Using DATABASE ONLY");
-      }
-    });
-  }
 }
-
 
 connect_to_datastores();
 
@@ -156,14 +147,24 @@ function request_path(request) {
 }
 
 function check_whitelist(url, cb_fn) {
-  var redis_whitelisted = redis_client.sismember("samsara_url_whitelist", url, function(redis_err, redis_result) {
-    if (redis_err) {
-      db_client.query("SELECT is_whitelisted FROM samsara_url_whitelist WHERE url='" + url + "'", function(db_err, db_result) {
-        cb_fn(db_err, db_result);
-      }
-    } else {
-      cb_fn(redis_err, redis_result);
-    }
+  if (redis_client.connected) {
+    check_redis_whitelist(url, cb_fn);
+  } else {
+    console.log("checking db whitelist");
+    check_database_whitelist(url, cb_fn);
+  }
+}
+
+function check_redis_whitelist(url, cb_fn) {
+  redis_client.sismember("samsara_url_whitelist", url, function(redis_err, redis_result) {
+    cb_fn(redis_err, redis_result);
+  });
+}
+
+function check_database_whitelist(url, cb_fn) {
+  db_client.query("SELECT whitelisted, url FROM samsara_url_whitelist WHERE url='" + url + "'", function(db_err, db_result) {
+    var whitelisted = db_result['rowCount'] > 0
+    cb_fn(db_err, whitelisted);
   });
 }
 
