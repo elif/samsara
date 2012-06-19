@@ -41,7 +41,7 @@ var server = http.createServer(function(request, response) {
   } else if (agent.queue.length > 100) {
     serve_502(response, "Server overloaded at the moment, please try again later");
   } else {
-    redis_client.sismember("samsara_url_whitelist", request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
+    check_whitelist(request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
       if (whitelisted) {
         console.log('deejay response');
         proxy_to_deejay(request, response);
@@ -155,8 +155,16 @@ function request_path(request) {
   return parsed_url['search'] ? (parsed_url['pathname'] + parsed_url['search']) : parsed_url['pathname']
 }
 
-function url_whitelisted(url) {
-  
+function check_whitelist(url, cb_fn) {
+  var redis_whitelisted = redis_client.sismember("samsara_url_whitelist", url, function(redis_err, redis_result) {
+    if (redis_err) {
+      db_client.query("SELECT is_whitelisted FROM samsara_url_whitelist WHERE url='" + url + "'", function(db_err, db_result) {
+        cb_fn(db_err, db_result);
+      }
+    } else {
+      cb_fn(redis_err, redis_result);
+    }
+  });
 }
 
 function serve(response, body) {
