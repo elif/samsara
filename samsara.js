@@ -3,10 +3,36 @@ var http = require('http'),
     url = require('url'),
     fugue = require('fugue'),
     fs = require('fs'),
+    pg = require('pg'),
     buffer = require('./lib/request_buffer.js'),
     redis_url = url.parse(process.env.REDIS_URL),
-    redis_client = redis.createClient(redis_url['port'], redis_url['hostname']),
-    agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT);
+    agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT),
+    redis_client, db_client;
+
+function connect_to_datastores() {
+  redis_client = redis.createClient(redis_url['port'], redis_url['hostname'], {no_ready_check: true})
+  redis_client.on("error", function(err) {  console.log("Unable to connect to redis (" + process.env.REDIS_URL + "): " + err); });
+
+  db_client = new pg.Client(process.env.POSTGRES_URL);
+  db_client.on("error", function (err) { console.log("Unable to connect to postgres (" + process.env.POSTGRES_URL + "): " + err); });
+  db_client.connect();
+  var connected = redis_client.info()
+  if (!connected) {
+    console.log("Redis communication failed");
+    console.log("Trying postgres...");
+    db_client.query("SELECT whitelisted FROM samsara_url_whitelist LIMIT 1", function(err, result) {
+      if (err) {
+        throw new Error("Cannot connect to postgres: " + err) 
+      } else {
+        console.log("Using DATABASE ONLY");
+      }
+    });
+  }
+}
+
+
+connect_to_datastores();
+
 
 var server = http.createServer(function(request, response) {
   buffer.capture(request);
