@@ -18,9 +18,8 @@ function connect_to_datastores() {
   db_client.connect();
   var connected = redis_client.info()
   if (!connected) {
-    console.log("Redis communication failed");
-    console.log("Trying postgres...");
-    db_client.query("SELECT whitelisted FROM samsara_url_whitelist LIMIT 1", function(err, result) {
+    console.log("Redis communication failed\nTrying postgres...");
+    db_client.query("SHOW_TABLES", function(err, result) {
       if (err) {
         throw new Error("Cannot connect to postgres: " + err) 
       } else {
@@ -78,15 +77,11 @@ function proxy_request(request, response) {
 
   emcee_request.on('response', function(emcee_response) {
     var status_code = emcee_response.statusCode
-    var recordable = (!emcee_response.headers['content-encoding'])
-    var response_body = ""
     emcee_response.on('data', function(chunk) {
       response.write(chunk, 'binary');
-      if (recordable) { response_body += chunk.toString('utf8'); }
     });
     emcee_response.on('end', function() {
       response.end();
-      if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
       console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
@@ -94,11 +89,9 @@ function proxy_request(request, response) {
 
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
-    var recordable = (!deejay_response.headers['content-encoding'])
-    var response_body = ""
-    deejay_response.on('data', function(chunk) { if (recordable) { response_body += chunk.toString('utf8'); } });
+    deejay_response.on('data', function(chunk) { });
     deejay_response.on('end', function() {
-      if (recordable) { record_response("deejay", request.headers['host'] + path, status_code, response_body); }
+      console.log("Deejay returned: " + status_code + " for " + request.headers['host'] + path);
     });
   });
 
@@ -136,11 +129,8 @@ function proxy_to_deejay(request, response) {
 
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
-    var recordable = (!deejay_response.headers['content-encoding'])
-    var response_body = ""
     deejay_response.on('data', function(chunk) {
       response.write(chunk, 'binary');
-      if (recordable) { response_body += chunk.toString('utf8'); }
     });
     deejay_response.on('end', function() {
       response.end();
@@ -165,16 +155,8 @@ function request_path(request) {
   return parsed_url['search'] ? (parsed_url['pathname'] + parsed_url['search']) : parsed_url['pathname']
 }
 
-function record_response(type, url, code, body) {
-  if (body) {
-    try {
-      redis_client.hset("responses:" + url, type + "_code", code);
-      redis_client.hset("responses:" + url, type + "_body", body);
-      redis_client.expire("responses:" + url, 36000);
-    } catch (err) {
-      console.log("redis logging error");
-    }
-  }
+function url_whitelisted(url) {
+  
 }
 
 function serve(response, body) {
