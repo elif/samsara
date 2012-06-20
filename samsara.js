@@ -163,7 +163,7 @@ function check_redis_whitelist(url, cb_fn) {
 
 function check_database_whitelist(url, cb_fn) {
   db_client.query("SELECT whitelisted, url FROM samsara_url_whitelist WHERE url='" + url + "'", function(db_err, db_result) {
-    var whitelisted = db_result['rowCount'] > 0
+    var whitelisted = (db_result['rowCount'] > 0) ? db_result['rows'][0]['whitelisted'] : undefined // double check this line
     cb_fn(db_err, whitelisted);
   });
 }
