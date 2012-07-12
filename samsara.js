@@ -59,6 +59,11 @@ function proxy_request(request, response) {
     method: request.method,
     headers: request.headers });
 
+  emcee_request.setTimeout(10000, function() {
+    response.end();
+    console.log("Request timed out for " + request.headers['host'] + path);
+  })
+
   var deejay_request = http.request({
     host: process.env.DEEJAY_HOST,
     path: path,
