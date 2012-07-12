@@ -1,12 +1,12 @@
 var http = require('http'),
     redis = require('redis'),
     url = require('url'),
-    fugue = require('fugue'),
     fs = require('fs'),
     pg = require('pg'),
+    cluster = require('cluster'),
     buffer = require('./lib/request_buffer.js'),
     redis_url = url.parse(process.env.REDIS_URL),
-    agent = http.getAgent(process.env.EMCEE_HOST, process.env.EMCEE_PORT),
+    agent = http.globalAgent,
     redis_client, db_client;
 
 function connect_to_datastores() {
@@ -23,31 +23,44 @@ function connect_to_datastores() {
 
 connect_to_datastores();
 
+if (cluster.isMaster) {
+  // Write PID file manually
+  fs.writeFileSync("/var/run/vitrue/samsara.pid", process.pid.toString(), 'utf8', function(err) {
+    if (err) throw err;
+    console.log("wrote PID " + process.pid);
+  });
 
-var server = http.createServer(function(request, response) {
-  buffer.capture(request);
-  var path = request_path(request);
-  if (path == "/monitor/health") { 
-    serve(response, "Healthy!!");
-  } else if (agent.queue.length > 100) {
-    serve_502(response, "Server overloaded at the moment, please try again later");
-  } else {
-    check_whitelist(request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
-      if (whitelisted) {
-        console.log('deejay response');
-        proxy_to_deejay(request, response);
-      } else {
-        console.log('emcee response');
-        proxy_request(request, response);
-      }
-    });
-  }
-});
+  // Spawn workers
+  for (var i = 0; i < process.env.SAMSARA_WORKER_COUNT; i++) { cluster.fork(); }
 
-fugue.start(server, process.env.SAMSARA_PORT, "0.0.0.0", process.env.SAMSARA_WORKER_COUNT, {
-  verbose: true,
-  master_pid_path: "/var/run/vitrue/samsara.pid"
-});
+  // Alert and start new worker on worker death
+  cluster.on('exit', function(worker, code, signal) {
+    console.log('worker ' + worker.pid + ' died with code ' + code + ': ' + signal);
+    cluster.fork();
+  });
+} else {
+  var server = http.createServer(function(request, response) {
+    buffer.capture(request);
+    var path = request_path(request);
+    if (path == "/monitor/health") {
+      serve(response, "Healthy!!");
+    } else if (agent.queue.length > 100) {
+      serve_502(response, "Server overloaded at the moment, please try again later");
+    } else {
+      console.log("my request is: " + request + " and my url is " + request.url);
+      check_whitelist(request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
+        if (whitelisted) {
+          console.log('deejay response');
+          proxy_to_deejay(request, response);
+        } else {
+          console.log('emcee response');
+          proxy_request(request, response);
+        }
+      });
+    }
+  });
+  server.listen(process.env.SAMSARA_PORT);
+}
  
 function proxy_request(request, response) {
   var path = request_path(request);
@@ -59,17 +72,17 @@ function proxy_request(request, response) {
     method: request.method,
     headers: request.headers });
 
-  emcee_request.socket.setTimeout(10000, function() {
-    response.end();
-    console.log("Request timed out for " + request.headers['host'] + path);
-  })
+  emcee_request.setTimeout(1000, function() { console.log("request timed out"); response.end() });
 
   var deejay_request = http.request({
     host: process.env.DEEJAY_HOST,
     path: path,
     port: parseInt(process.env.DEEJAY_PORT),
     method: request.method,
-    headers: request.headers });
+    headers: request.headers,
+    agent: false });
+
+  deejay_request.setTimeout(1000, function() { console.log("request timed out"); response.end() });
 
   emcee_request.on('response', function(emcee_response) {
     var status_code = emcee_response.statusCode
@@ -122,6 +135,8 @@ function proxy_to_deejay(request, response) {
     method: request.method,
     headers: request.headers,
     agent: false });
+
+  deejay_request.setTimeout(1000, function() { console.log("request timed out"); response.end() });
 
   deejay_request.on('response', function(deejay_response) {
     var status_code = deejay_response.statusCode
