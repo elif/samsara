@@ -44,16 +44,13 @@ if (cluster.isMaster) {
     var path = request_path(request);
     if (path == "/monitor/health") {
       serve(response, "Healthy!!");
-    } else if (agent.queue.length > 100) {
+    } else if (agent.requests.length > 100) {
       serve_502(response, "Server overloaded at the moment, please try again later");
     } else {
-      console.log("my request is: " + request + " and my url is " + request.url);
       check_whitelist(request.headers['host'] + url.parse(request.url).pathname, function(error, whitelisted) {
         if (whitelisted) {
-          console.log('deejay response');
           proxy_to_deejay(request, response);
         } else {
-          console.log('emcee response');
           proxy_request(request, response);
         }
       });
