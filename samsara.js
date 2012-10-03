@@ -60,7 +60,12 @@ function proxy_request(request, response) {
     });
     emcee_response.on('end', function() {
       response.end();
-      if (recordable) { record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+      if (recordable) { 
+		if(status_code==301) {
+			record_redirect_response("emcee", request.headers['host'] + path, status_code, emcee_response.headers.location);
+		} else {
+			record_response("emcee", request.headers['host'] + path, status_code, response_body); }
+      	}
       console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(emcee_response.statusCode, emcee_response.headers);
@@ -118,7 +123,13 @@ function proxy_to_deejay(request, response) {
     });
     deejay_response.on('end', function() {
       response.end();
-      console.log("Successfully proxied " + request.headers['host'] + path);
+	  if (recordable) { 
+		if(status_code==301) {
+			record_redirect_response("deejay", request.headers['host'] + path, status_code, deejay_response.headers.location);
+		} else {
+			record_response("deejay", request.headers['host'] + path, status_code, response_body); }
+      	}
+		console.log("Successfully proxied " + request.headers['host'] + path);
     });
     response.writeHead(deejay_response.statusCode, deejay_response.headers);
   });
@@ -144,6 +155,18 @@ function record_response(type, url, code, body) {
     try {
       redis_client.hset("responses:" + url, type + "_code", code);
       redis_client.hset("responses:" + url, type + "_body", body);
+      redis_client.expire("responses:" + url, 36000);
+    } catch (err) {
+      console.log("redis logging error");
+    }
+  }
+}
+
+function record_redirect_response(type, url, code, location) {
+  if (location) {
+    try {
+      redis_client.hset("responses:" + url, type + "_code", code);
+      redis_client.hset("responses:" + url, type + "_location", location);
       redis_client.expire("responses:" + url, 36000);
     } catch (err) {
       console.log("redis logging error");
